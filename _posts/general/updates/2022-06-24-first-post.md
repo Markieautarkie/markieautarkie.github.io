@@ -1,10 +1,8 @@
 ---
-title: First Post!
+title: "First Post!"
 date: 2022-06-24 11:40:22 +0200
 categories: [General, Updates]
 tags: [introduction]
-
-pin: true
 ---
 
 Hi there, welcome to my brand new blog! In the upcoming months (years?) I'll hopefully be busy adding tons more content to this space. For now, this little introductory post will suffice to kickstart myself into writing at least *something*.
