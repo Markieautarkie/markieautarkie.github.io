@@ -11,7 +11,7 @@ Many a year ago, my brother got a brand new *Nintendo 64* for his birthday. I st
 At the time, *Super Mario 64* was both impressive due to the fantastic gameplay (but that's a topic for another day!) as for its visuals. Especially regarding the latter, the video game industry hasn't been resting on its laurels. Nowadays the polygon count is pumped up the wazoo due to ever-increasing hardware power, and many fancy rendering techniques are applied. One of these rendering techniques reached proper buzzword status in the past few years: **ray tracing**. It has been a staple of the movie industry for quite a while now, but recently it's popping up in games as well. But why? What's so special about ray tracing?
 
 ![Super Mario 64 RT](https://media.techeblog.com/images/nintendo-super-mario-64-ray-tracing-modding.jpg){: w="320" h="320" style="max-width: 50%" .right }
-Ray tracers are so-called **physically based renderers**. They aim to model light transport between a virtual camera and light sources in a program. This makes them incredibly intuitive to reason about, as this is exactly what happens in real life! For example, light sources such as the sun or a clip-on *GameBoy* light emit rays of energy, also known as *photons*. These photons travel around your surroundings, bouncing against various objects along the way until some of them reach your eyes. Ray tracers mimic these laws of nature, allowing them to produce photo-realistic images.
+Ray tracers are so-called **physically based renderers**. They aim to model light transport between a virtual camera and light sources in a program. This makes them incredibly intuitive to reason about, as this is exactly what happens in real life! For example, light sources such as the sun or a clip-on *GameBoy* light emit rays of energy, also known as *photons*. These photons travel around your surroundings, bouncing against various objects along the way until some of them reach your eyes, resulting in a picture on your retina. Ray tracers mimic these laws of nature, allowing them to produce photo-realistic images.
 
 In short, ray tracing is pretty rad. So why not try our hand at making one? In this series I will walk you through the process of writing **Manta Ray**, my custom ray tracer (yes, I'm proud of that name).
 
@@ -19,16 +19,16 @@ In short, ray tracing is pretty rad. So why not try our hand at making one? In t
 This project is going to support *physically based rendering* with a focus on *real-time interactivity*. Due to my interest in games I'd like to make *Manta Ray* pretty fast. Since speed is important to me I opted to use **C++**; if you're following along, do note that you can pick whatever programming language you fancy!
 
 In time this series will roughly cover the following topics:
-- *Ray tracing fundamentals*;
-  - Outputting an image, creating rays and implementing a basic camera;
-  - Intersections with various primitives;
-- *Whitted-style ray tracing*;
-- *Acceleration structure construction and traversal*;
-- Stochastic approaches to *anti-aliasing*, *depth of field*, *soft shadows*, and more;
-- *Path tracing*;
-  - Variance reduction;
-- *Filtering techniques*;
-- Perhaps more as I see fit.
+- *Ray tracing fundamentals*
+  - Outputting an image, creating rays and implementing a basic camera
+  - Intersections with various primitives
+- *Whitted-style ray tracing*
+- *Acceleration structure construction and traversal*
+- Stochastic approaches to *anti-aliasing*, *depth of field*, *soft shadows*, and more
+- *Path tracing*
+  - Variance reduction
+- *Filtering techniques*
+- Perhaps more as I see fit
 
 Without further ado, let's get on with it!
 
@@ -71,15 +71,14 @@ void mantaray::Tick(float deltaTime)
 ```
 {: file="mantaray.cpp" }
 
-Be wary of the following points regarding this code snippet:
+There are some things to note in this code snippet:
 
-1. The screen (buffer) size is initially set to *512x512 pixels* for now.
-2. We loop over each pixel of the screen buffer from *left to right*, *top to bottom*. This is by convention; **the top-left corner is often defined as the origin when it comes to computer graphics**. This might be confusing if you're used to mathematical grid implementations which usually have the origin sitting at the lower-left corner, so watch out!
-3. Another common aspect is to map the red/green/blue component values to a range of *0.0 to 1.0, inclusive*. This will later be altered when high dynamic range is implemented.
+1. We loop over each pixel of the screen buffer from *left to right*, *top to bottom*. This is by convention; **the top-left corner is often defined as the origin when it comes to computer graphics**. This might be confusing if you're used to mathematical grid implementations which usually have the origin sitting at the lower-left corner, so watch out!
+2. Another common aspect is to map the red/green/blue component values to a range of *0.0 to 1.0, inclusive*. This will later be altered when *high dynamic range* is implemented.
 
 The resulting image should have its red component go from black on the left side of the screen to bright red on the right, while the blue component goes from off at the top to fully on at the bottom. This means that both components should be maxed out in the lower-right corner, resulting in purple. And indeed:
 
-![test](https://i.postimg.cc/G2HxcMqr/2022-07-01-hello-manta-ray.png){: w="512" h="512" }
+![Hello Manta Ray](https://i.postimg.cc/652ncJ5k/hello-manta-ray.png){: w="512" h="512" }
 _Hello Manta Ray!_
 
 > It's a good idea to "sanity check" your program early and often. This will help prevent frustrating bugs later on.
