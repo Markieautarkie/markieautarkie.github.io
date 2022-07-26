@@ -23,7 +23,7 @@ At the moment we pass the `screen->Plot` function a `uint` for a color. Shifting
 First, we define a `color` alias for `float3`:
 
 ```c++
-// type alias for float3, defined below its struct implementation
+// type alias for float3, defined below its existing struct implementation
 using color = float3;
 ```
 {: file="precomp.h" .nolineno }
@@ -85,12 +85,12 @@ For now, let's solely focus on the first step. To calculate rays spawning from t
 {: .prompt-info }
 
 ### Implementing rays
-All ray tracers have some implementation in place to compute ray-specific values in order to render an image (I know, total shocker right?). A ray can be defined as an *infinite half-line;* **basically a line in 3D space with a starting point**. This leads to the following function:
+All ray tracers have some implementation in place to compute ray-specific values in order to render an image (I know, total shocker right?). A ray can be defined as an *infinite half-line;* basically a **line in 3D space with a starting point**. This leads to the following function:
 
 $$ P(t) = O + t\overrightarrow{D} $$
 
 ![Ray Example](https://i.postimg.cc/gkw86BbN/ray-example.png){: w="320" h="320" style="max-width: 50%" .right }
-Where $O$ is the *ray origin* and $\overrightarrow{D}$ the *(normalized) direction* of the ray, both expressed as vectors. Any 3D point $P$ along the ray can be found by plugging in values for $t$ where $t \geq 0$. In other words, different values for $t$ moves point $p$ along the ray. This will be useful to find the exact intersection points of a ray with objects in a scene.
+Where $O$ is the *ray origin* and $\overrightarrow{D}$ the *(normalized) direction* of the ray. Any 3D point $P$ along the ray can be found by plugging in values for $t$, where $t \geq 0$. In other words, different values for $t$ moves point $P$ along the ray. This will be useful to find the exact intersection points of a ray with objects in a scene.
 
 Let's add a ray class to the project which implements this functionality:
 
@@ -140,7 +140,7 @@ constexpr int m_scr_height = m_scr_width / m_aspect;
 
 For the viewport we will use the same aspect ratio to ensure the pixels are perfect squares. We could always change this later to get cool effects such as [barrel- or pincushion distortion](https://the-pro-photographer.com/wp-content/uploads/2017/07/Barrel-Distortion.png)... Kinda like changing lenses on a camera! 
 
-The viewport will be two units in height, as will be the distance between the camera origin and the viewport (the *focal length* of a camera). To keep things simple, let's put the camera origin at $(0, 0, 0)$. Recall from the previous post that the coordinate system in graphics applications starts in the top-left corner, where *x* and *y* are positive when going to the right and down respectively. Hence why I have chosen to do the same for the camera coordinate system, making it less confusing. To respect the [right handed coordinate system](https://en.wikipedia.org/wiki/Right-hand_rule), the *z-axis* will be positive going into the screen; or differently phrased, the value of *z* will be larger when the depth is greater.
+The viewport will be two units in height, as will be the distance between the camera origin and the viewport (the *focal length* of a camera). To keep things simple, let's put the camera origin at $(0, 0, 0)$. Recall from the previous post that the coordinate system in graphics applications starts in the top-left corner, where *x* and *y* are positive when going to the right and down respectively. Hence why I have chosen to do the same for the camera coordinate system, making the program less confusing. To respect the [right handed coordinate system](https://en.wikipedia.org/wiki/Right-hand_rule), the *z-axis* will be positive going into the screen; or differently phrased, the value of *z* will be larger when the depth is greater.
 
 ![Camera and Viewport Geometry](https://i.postimg.cc/SNTkYkpz/camera-and-viewport-geometry.png){: w="512" h="512" }
 _An overview of the camera and viewport geometry._
@@ -178,14 +178,15 @@ public:
         float focal_length = 2.0f;
 
         // create the viewport by defining the horizontal/vertical/focal vectors 
-        // and set the camera origin at (0,0,0)
+        // and set the camera origin at (0.0f,0.0f,0.0f)
         m_origin = float3(0.0f);
         m_horizontal = float3(viewport_width, 0.0f, 0.0f);
         m_vertical = float3(0.0f, viewport_height, 0.0f);
         m_focal = float3(0.0f, 0.0f, focal_length);
 
-        // calculate the position of the upper left corner using the created vectors/positions
-        m_upper_left_corner = m_origin - m_horizontal / 2 - m_vertical / 2 + m_focal;
+        // calculate the position of the upper left corner of the virtual viewplane,
+        // using the created vectors/positions
+        m_upper_left_corner = m_origin - m_horizontal / 2.0f - m_vertical / 2.0f + m_focal;
     }
 
     // fire a new ray from the camera, with u and v defining the ratio to the viewport
@@ -197,35 +198,19 @@ public:
 ```
 {: file="camera.h" }
 
-To test the new camera, I implemented a simple temporary function which returns a color for a ray depending on its *y* direction:
+To test the new camera, I implemented a simple temporary function which returns a color for a ray depending on its *y* direction called `ray_color`. All these changes are reflected in the main source file as follows:
 
 ```c++
-// returns a background gradient depending on the y value of a ray
-color ray_color(const ray& r)
-{
-    // convert a ray's y value from [-1, 1] space to [0, 1] space
-    float t = 0.5f * (r.direction().y + 1.0f);
-
-    // linear interpolation of the background, t = 0 gives white, t = 1 gives blue-ish, blend in-between
-    return lerp(color(1.0f), color(0.5f, 0.7f, 1.0f), t);
-}
-```
-{: file="mantaray.cpp" .nolineno }
-
-All these changes are reflected in the main source file as follows:
-
-```c++
-// create an instance of the camera class
 camera cam;
 
-// returns a background gradient depending on the y value of a ray
+// returns a background gradient depending on the y direction of a primary ray
 color ray_color(const ray& r)
 {
-    // convert a ray's y value from [-1, 1] space to [0, 1] space
-    float t = 0.5f * (r.direction().y + 1.0f);
+    // convert a ray's y value from roughly [-0.5, 0.5] space (due to vector normalization) to [0, 1] space
+    float t = r.direction().y + 0.5f;
 
-    // linear interpolation of the background, t = 0 gives white, t = 1 gives blue-ish, blend in-between
-    return lerp(color(1.0f), color(0.5f, 0.7f, 1.0f), t);
+    // linear interpolation of the background, t = 0 gives blue-ish, t = 1 gives white, blend in-between
+    return lerp(color(0.5f, 0.7f, 1.0f), color(1.0f), t);
 }
 
 // this method is called once per frame while the application is running
@@ -251,7 +236,7 @@ void mantaray::Tick(float deltaTime)
 
 Behold! Our first "ray traced" image:
 
-![First Raytraced Image](https://i.postimg.cc/3rC1n68f/first-raytraced-image.png){: w="512" h="512" }
+![First Raytraced Image](https://i.postimg.cc/SxXYs5Gs/first-raytraced-image.png){: w="512" h="512" }
 _Mr. Blue Sky, please tell us why, you had to hide away for so long (so long)!_
 
 It's... Rather dull for the amount of effort. However! We made some major strides coming to this point. The backbone of our renderer is now (mostly) in place. Next time we will implement [step 2](#ray-tracing-in-a-nutshell) of the rendering process: **ray intersection!** See ya later. 🐊

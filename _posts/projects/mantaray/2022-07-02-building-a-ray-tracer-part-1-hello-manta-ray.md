@@ -74,7 +74,7 @@ void mantaray::Tick(float deltaTime)
 There are some things to note in this code snippet:
 
 1. We loop over each pixel of the screen buffer from *left to right*, *top to bottom*. This is by convention; **the top-left corner is often defined as the origin when it comes to computer graphics**. This might be confusing if you're used to mathematical grid implementations which usually have the origin sitting at the lower-left corner, so watch out!
-2. Another common aspect is to map the red/green/blue component values to a range of *0.0 to 1.0, inclusive*. This will later be altered when *high dynamic range* is implemented.
+2. Another common aspect is to map the red/green/blue component values to a range of *0.0 to 255.0, inclusive*. This will later be altered when *high dynamic range* is implemented.
 
 The resulting image should have its red component go from black on the left side of the screen to bright red on the right, while the blue component goes from off at the top to fully on at the bottom. This means that both components should be maxed out in the lower-right corner, resulting in purple. And indeed:
 
