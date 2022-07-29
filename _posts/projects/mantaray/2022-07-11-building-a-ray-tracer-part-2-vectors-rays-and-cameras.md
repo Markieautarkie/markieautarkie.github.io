@@ -12,7 +12,7 @@ The [previous post](https://markieautarkie.github.io/posts/building-a-ray-tracer
 ## Vectors
 At the heart of ray tracers (or almost any graphical program for that matter) lay vectors. As you might already know, a vector is a quantity that has a *magnitude* and a *direction*, commonly represented by a line segment. We'll be using vectors to denote many types of data within the program such as **directions**, **locations**, **offsets** and even **colors**.
 
-Luckily, the [base template](https://github.com/jbikker/advgrtmpl8) we're using has already implemented vector constructions and accompanying mathematics for us. Since we work in 3D space, the predefined `float3` struct is just what we need; it stores *x*, *y* and *z* coordinate components with floating point precision and it has all the vector functions we'd need for now.
+Luckily, the [base template](https://github.com/jbikker/advgrtmpl8) we're using has already implemented vector constructions and accompanying mathematics for us. Since we work in 3D space, the predefined `float3` struct is just what we need; it stores *x*, *y* and *z* coordinate components with floating point precision and it has all the vector functions we'd need for now. Going forward, I will assume that you have a basic understanding of vector related mathematics!
 
 > New to vectors or do you need a refresher? [**This video**](https://www.youtube.com/watch?v=Ej3ZVxljJfo) is a great recap of everything you'd need to know about vector math!
 {: .prompt-info }
