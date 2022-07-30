@@ -2,7 +2,7 @@
 title: "Building a Ray Tracer - Part 3: Intersection Galore!"
 date: 2022-07-30 00:12:20 +0200
 categories: [Projects, Manta Ray]
-tags: [c++, ray tracing, vectors, intersections]
+tags: [c++, ray tracing, vectors, intersections, abstraction]
 
 math: true
 ---
@@ -417,6 +417,9 @@ bool triangle::intersect(const ray& r, intersect_data& data, float t_min, float 
 
     float t = f * dot(edge2, q);
     if (t < EPSILON) return false;
+
+    // reject t if the value doesn't lie between the given boundaries
+    if (!between(t, t_min, t_max)) return false;
 
     // update the intersection data
     data.t = t;
