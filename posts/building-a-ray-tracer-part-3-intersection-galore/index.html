@@ -1,0 +1,451 @@
+<!DOCTYPE html><html lang="en" ><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"><meta name="prefer-datetime-locale" content="en-gb"><meta name="generator" content="Jekyll v4.2.2" /><meta property="og:title" content="Building a Ray Tracer - Part 3: Intersection Galore!" /><meta property="og:locale" content="en" /><meta name="description" content="Last time we left off with a (pretty empty) backdrop for the ray tracing scene. With ray functionality and a basic camera implemented, our focus shifts to actually rendering some primitives. And to do that, we need to talk about intersections. Also math. Lots, and lots of math… But it will be fun, I promise!" /><meta property="og:description" content="Last time we left off with a (pretty empty) backdrop for the ray tracing scene. With ray functionality and a basic camera implemented, our focus shifts to actually rendering some primitives. And to do that, we need to talk about intersections. Also math. Lots, and lots of math… But it will be fun, I promise!" /><link rel="canonical" href="https://markieautarkie.github.io/posts/building-a-ray-tracer-part-3-intersection-galore/" /><meta property="og:url" content="https://markieautarkie.github.io/posts/building-a-ray-tracer-part-3-intersection-galore/" /><meta property="og:site_name" content="Mark’s Lil’ Corner" /><meta property="og:type" content="article" /><meta property="article:published_time" content="2022-07-30T00:12:20+02:00" /><meta name="twitter:card" content="summary" /><meta property="twitter:title" content="Building a Ray Tracer - Part 3: Intersection Galore!" /><meta name="twitter:site" content="@twitter_username" /> <script type="application/ld+json"> {"@context":"https://schema.org","@type":"BlogPosting","dateModified":"2022-07-30T13:37:05+02:00","datePublished":"2022-07-30T00:12:20+02:00","description":"Last time we left off with a (pretty empty) backdrop for the ray tracing scene. With ray functionality and a basic camera implemented, our focus shifts to actually rendering some primitives. And to do that, we need to talk about intersections. Also math. Lots, and lots of math… But it will be fun, I promise!","headline":"Building a Ray Tracer - Part 3: Intersection Galore!","mainEntityOfPage":{"@type":"WebPage","@id":"https://markieautarkie.github.io/posts/building-a-ray-tracer-part-3-intersection-galore/"},"url":"https://markieautarkie.github.io/posts/building-a-ray-tracer-part-3-intersection-galore/"}</script><title>Building a Ray Tracer - Part 3: Intersection Galore! | Mark's Lil' Corner</title><link rel="apple-touch-icon" sizes="180x180" href="/assets/img/favicons/apple-touch-icon.png"><link rel="icon" type="image/png" sizes="32x32" href="/assets/img/favicons/favicon-32x32.png"><link rel="icon" type="image/png" sizes="16x16" href="/assets/img/favicons/favicon-16x16.png"><link rel="manifest" href="/assets/img/favicons/site.webmanifest"><link rel="shortcut icon" href="/assets/img/favicons/favicon.ico"><meta name="apple-mobile-web-app-title" content="Mark's Lil' Corner"><meta name="application-name" content="Mark's Lil' Corner"><meta name="msapplication-TileColor" content="#da532c"><meta name="msapplication-config" content="/assets/img/favicons/browserconfig.xml"><meta name="theme-color" content="#ffffff"><link rel="preconnect" href="https://fonts.googleapis.com" ><link rel="dns-prefetch" href="https://fonts.googleapis.com" ><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="dns-prefetch" href="https://fonts.gstatic.com" crossorigin><link rel="preconnect" href="https://fonts.googleapis.com" ><link rel="dns-prefetch" href="https://fonts.googleapis.com" ><link rel="preconnect" href="https://cdn.jsdelivr.net" ><link rel="dns-prefetch" href="https://cdn.jsdelivr.net" ><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lato&family=Source+Sans+Pro:wght@400;600;700;900&display=swap"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4/dist/css/bootstrap.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@5.11.2/css/all.min.css"><link rel="stylesheet" href="/assets/css/style.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/afeld/bootstrap-toc@1.0.1/dist/bootstrap-toc.min.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/magnific-popup@1/dist/magnific-popup.min.css"> <script src="https://cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script> <script type="text/javascript"> class ModeToggle { static get MODE_KEY() { return "mode"; } static get MODE_ATTR() { return "data-mode"; } static get DARK_MODE() { return "dark"; } static get LIGHT_MODE() { return "light"; } static get ID() { return "mode-toggle"; } constructor() { if (this.hasMode) { if (this.isDarkMode) { if (!this.isSysDarkPrefer) { this.setDark(); } } else { if (this.isSysDarkPrefer) { this.setLight(); } } } let self = this; /* always follow the system prefers */ this.sysDarkPrefers.addEventListener("change", () => { if (self.hasMode) { if (self.isDarkMode) { if (!self.isSysDarkPrefer) { self.setDark(); } } else { if (self.isSysDarkPrefer) { self.setLight(); } } self.clearMode(); } self.notify(); }); } /* constructor() */ get sysDarkPrefers() { return window.matchMedia("(prefers-color-scheme: dark)"); } get isSysDarkPrefer() { return this.sysDarkPrefers.matches; } get isDarkMode() { return this.mode === ModeToggle.DARK_MODE; } get isLightMode() { return this.mode === ModeToggle.LIGHT_MODE; } get hasMode() { return this.mode != null; } get mode() { return sessionStorage.getItem(ModeToggle.MODE_KEY); } /* get the current mode on screen */ get modeStatus() { if (this.isDarkMode || (!this.hasMode && this.isSysDarkPrefer)) { return ModeToggle.DARK_MODE; } else { return ModeToggle.LIGHT_MODE; } } setDark() { $('html').attr(ModeToggle.MODE_ATTR, ModeToggle.DARK_MODE); sessionStorage.setItem(ModeToggle.MODE_KEY, ModeToggle.DARK_MODE); } setLight() { $('html').attr(ModeToggle.MODE_ATTR, ModeToggle.LIGHT_MODE); sessionStorage.setItem(ModeToggle.MODE_KEY, ModeToggle.LIGHT_MODE); } clearMode() { $('html').removeAttr(ModeToggle.MODE_ATTR); sessionStorage.removeItem(ModeToggle.MODE_KEY); } /* Notify another plugins that the theme mode has changed */ notify() { window.postMessage({ direction: ModeToggle.ID, message: this.modeStatus }, "*"); } } /* ModeToggle */ const toggle = new ModeToggle(); function flipMode() { if (toggle.hasMode) { if (toggle.isSysDarkPrefer) { if (toggle.isLightMode) { toggle.clearMode(); } else { toggle.setLight(); } } else { if (toggle.isDarkMode) { toggle.clearMode(); } else { toggle.setDark(); } } } else { if (toggle.isSysDarkPrefer) { toggle.setLight(); } else { toggle.setDark(); } } toggle.notify(); } /* flipMode() */ </script><body data-spy="scroll" data-target="#toc" data-topbar-visible="true"><div id="sidebar" class="d-flex flex-column align-items-end"><div class="profile-wrapper text-center"><div id="avatar"> <a href="/" class="mx-auto"> <img src="https://secure.gravatar.com/avatar/017ef1bed479b400e103660ad49bab33.png?size=512" alt="avatar" onerror="this.style.display='none'"> </a></div><div class="site-title mt-3"> <a href="/">Mark's Lil' Corner</a></div><div class="site-subtitle font-italic">Sometimes I code stuff!</div></div><ul class="w-100"><li class="nav-item"> <a href="/" class="nav-link"> <i class="fa-fw fas fa-home ml-xl-3 mr-xl-3 unloaded"></i> <span>HOME</span> </a><li class="nav-item"> <a href="/categories/" class="nav-link"> <i class="fa-fw fas fa-stream ml-xl-3 mr-xl-3 unloaded"></i> <span>CATEGORIES</span> </a><li class="nav-item"> <a href="/tags/" class="nav-link"> <i class="fa-fw fas fa-tag ml-xl-3 mr-xl-3 unloaded"></i> <span>TAGS</span> </a><li class="nav-item"> <a href="/archives/" class="nav-link"> <i class="fa-fw fas fa-archive ml-xl-3 mr-xl-3 unloaded"></i> <span>ARCHIVES</span> </a><li class="nav-item"> <a href="/about/" class="nav-link"> <i class="fa-fw fas fa-info-circle ml-xl-3 mr-xl-3 unloaded"></i> <span>ABOUT</span> </a></ul><div class="sidebar-bottom mt-auto d-flex flex-wrap justify-content-center align-items-center"> <button class="mode-toggle btn" aria-label="Switch Mode"> <i class="fas fa-adjust"></i> </button> <span class="icon-border"></span> <a href="https://github.com/Markieautarkie" aria-label="github" target="_blank" rel="noopener"> <i class="fab fa-github"></i> </a> <a href=" javascript:location.href = 'mailto:' + ['markieautarkie','gmail.com'].join('@')" aria-label="email" > <i class="fas fa-envelope"></i> </a> <a href="/feed.xml" aria-label="rss" > <i class="fas fa-rss"></i> </a></div></div><div id="topbar-wrapper"><div id="topbar" class="container d-flex align-items-center justify-content-between h-100 pl-3 pr-3 pl-md-4 pr-md-4"> <span id="breadcrumb"> <span> <a href="/"> Home </a> </span> <span>Building a Ray Tracer - Part 3: Intersection Galore!</span> </span> <i id="sidebar-trigger" class="fas fa-bars fa-fw"></i><div id="topbar-title"> Post</div><i id="search-trigger" class="fas fa-search fa-fw"></i> <span id="search-wrapper" class="align-items-center"> <i class="fas fa-search fa-fw"></i> <input class="form-control" id="search-input" type="search" aria-label="search" autocomplete="off" placeholder="Search..."> </span> <span id="search-cancel" >Cancel</span></div></div><div id="main-wrapper" class="d-flex justify-content-center"><div id="main" class="container pl-xl-4 pr-xl-4"><div class="row"><div id="core-wrapper" class="col-12 col-lg-11 col-xl-9 pr-xl-4"><div class="post pl-1 pr-1 pl-md-2 pr-md-2"><h1 data-toc-skip>Building a Ray Tracer - Part 3: Intersection Galore!</h1><div class="post-meta text-muted"> <span> Posted <em class="" data-ts="1659132740" data-df="ll" data-toggle="tooltip" data-placement="bottom"> Jul 30, 2022 </em> </span> <span> Updated <em class="" data-ts="1659181025" data-df="ll" data-toggle="tooltip" data-placement="bottom"> Jul 30, 2022 </em> </span><div class="d-flex justify-content-between"> <span> By <em> <a href="https://github.com/markieautarkie">Mark Berentsen</a> </em> </span><div> <span class="readtime" data-toggle="tooltip" data-placement="bottom" title="3050 words"> <em>16 min</em> read</span></div></div></div><div class="post-content"><p><a href="https://markieautarkie.github.io/posts/building-a-ray-tracer-part-2-vectors-rays-and-cameras/">Last time</a> we left off with a (pretty empty) backdrop for the ray tracing scene. With ray functionality and a basic camera implemented, our focus shifts to actually rendering some primitives. And to do that, we need to talk about intersections. Also math. Lots, and lots of math… But it will be fun, I promise!</p><h2 id="rather-plane"><span class="mr-2">Rather plane</span><a href="#rather-plane" class="anchor text-muted"><i class="fas fa-hashtag"></i></a></h2><p>Let’s kick things off with the implementation of an <em>infinite plane</em>, as it is simple to construct. One of the many ways to express an infinite plane is defined by the following function:</p>\[P \cdot \overrightarrow{N} + d = 0\]<p>Where $P$ is a <em>point in 3D space</em>, $\overrightarrow{N}$ the <em>normal vector</em> of the plane and $d$ a <em>scalar offset</em>.</p><p>You might be wondering what a “normal vector” is at this point; in short, it is <strong>a vector whose direction is perpendicular to a certain surface</strong> - in this case, the surface of a plane. Normals are used absolutely <em>everywhere</em> in graphical applications. For now this quick introduction will suffice though.</p><blockquote class="prompt-warning"><div><p>Note that a <em>normal vector</em> and the act of <em>“normalizing” a vector</em> (ensuring that the length of a vector is equal to 1) are two very different concepts!</p></div></blockquote><p>Perhaps you recall from the last post that the ray equation is defined as $P(t) = O + t\overrightarrow{D}$, giving us a point in 3D space along the ray. Due to one of the many cool properties of mathematics, we can substitute for $P$ in the plane equation by plugging in the ray formula:</p>\[(O + t\overrightarrow{D}) \cdot \overrightarrow{N} + d = 0\]<p>To figure out whether a ray intersects with the plane, we need to find a value for $t$ which satisfies this formula. In other words, by isolating $t$ in the equation we’ll find exactly what we’re looking for:</p>\[\rightarrow O \cdot \overrightarrow{N} + t\overrightarrow{D} \cdot \overrightarrow{N} + d = 0\] \[\rightarrow t\overrightarrow{D} \cdot \overrightarrow{N} = -(O \cdot \overrightarrow{N} + d)\] \[\rightarrow t = -(O \cdot \overrightarrow{N} + d) / (\overrightarrow{D} \cdot \overrightarrow{N})\]<p>Great! Let’s translate this final equation into code:</p><div class="language-c++ nolineno highlighter-rouge" file="mantaray.cpp"><div class="code-header"> <span data-label-text="mantaray.cpp"><i class="far fa-file-code"></i></span> <button aria-label="copy" data-title-succeed="Copied!"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+</pre><td class="rouge-code"><pre><span class="c1">// returns "true" if the ray intersects the plane, false otherwise</span>
+<span class="kt">bool</span> <span class="nf">intersect_plane</span><span class="p">(</span><span class="k">const</span> <span class="n">ray</span><span class="o">&amp;</span> <span class="n">r</span><span class="p">,</span> <span class="k">const</span> <span class="n">float3</span><span class="o">&amp;</span> <span class="n">normal</span><span class="p">,</span> <span class="kt">float</span> <span class="n">offset</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="c1">// D . N -&gt; to avoid division by zero,</span>
+    <span class="c1">// if the calculated value is close to zero return false</span>
+    <span class="kt">float</span> <span class="n">denominator</span> <span class="o">=</span> <span class="n">dot</span><span class="p">(</span><span class="n">r</span><span class="p">.</span><span class="n">direction</span><span class="p">(),</span> <span class="n">normal</span><span class="p">);</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">abs</span><span class="p">(</span><span class="n">denominator</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mf">0.00001</span><span class="n">f</span><span class="p">)</span> <span class="k">return</span> <span class="nb">false</span><span class="p">;</span>
+
+    <span class="c1">// O . N + d</span>
+    <span class="kt">float</span> <span class="n">numerator</span> <span class="o">=</span> <span class="n">dot</span><span class="p">(</span><span class="n">r</span><span class="p">.</span><span class="n">origin</span><span class="p">(),</span> <span class="n">normal</span><span class="p">)</span> <span class="o">+</span> <span class="n">offset</span><span class="p">;</span>
+
+    <span class="c1">// -(O . N + d) / (D . N)</span>
+    <span class="kt">float</span> <span class="n">t</span> <span class="o">=</span> <span class="o">-</span><span class="n">numerator</span> <span class="o">/</span> <span class="n">denominator</span><span class="p">;</span>
+
+    <span class="c1">// if t is zero or positive, the ray intersects the plane</span>
+    <span class="k">return</span> <span class="n">t</span> <span class="o">&gt;=</span> <span class="mf">0.0</span><span class="n">f</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></table></code></div></div><p>Now to expand the <code class="language-plaintext highlighter-rouge">ray_color</code> function just a tad in order to check for an arbitrary plane in the scene:</p><div class="language-c++ nolineno highlighter-rouge" file="mantaray.cpp"><div class="code-header"> <span data-label-text="mantaray.cpp"><i class="far fa-file-code"></i></span> <button aria-label="copy" data-title-succeed="Copied!"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+</pre><td class="rouge-code"><pre><span class="n">color</span> <span class="nf">ray_color</span><span class="p">(</span><span class="k">const</span> <span class="n">ray</span><span class="o">&amp;</span> <span class="n">r</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="c1">// check if the current ray intersects a plane with its normal pointing upwards,</span>
+    <span class="c1">// and the plane offset slightly down from the camera</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">intersect_plane</span><span class="p">(</span><span class="n">r</span><span class="p">,</span> <span class="n">float3</span><span class="p">(</span><span class="mf">0.0</span><span class="n">f</span><span class="p">,</span> <span class="o">-</span><span class="mf">1.0</span><span class="n">f</span><span class="p">,</span> <span class="mf">0.0</span><span class="n">f</span><span class="p">),</span> <span class="mf">1.0</span><span class="n">f</span><span class="p">))</span>
+        <span class="c1">// return green as a color when there is an intersection</span>
+        <span class="k">return</span> <span class="n">color</span><span class="p">(</span><span class="mf">0.0</span><span class="n">f</span><span class="p">,</span> <span class="mf">1.0</span><span class="n">f</span><span class="p">,</span> <span class="mf">0.0</span><span class="n">f</span><span class="p">);</span>
+
+    <span class="c1">// if there is no intersection, render the background as usual</span>
+    <span class="c1">// background code here...</span>
+<span class="p">}</span>
+</pre></table></code></div></div><p>Running the application now gives us an infinite plane rendered all the way towards the horizon (a grassy field, if you will). And with that… The first intersection implementation is finished!</p><p><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3C/svg%3E" data-src="https://i.postimg.cc/sfp75sB0/infinite-plane-render.png" alt="Infinite Plane Render" width="512" height="512" data-proofer-ignore> <em>Mr. Blue Sky, meet Mr. Green Field.</em></p><h2 id="abstraction"><span class="mr-2">Abstraction</span><a href="#abstraction" class="anchor text-muted"><i class="fas fa-hashtag"></i></a></h2><p>Sweet, we implemented a way to intersect a ray with a plane. But what if we want to check <em>several</em> planes? Do we need to describe a specific condition for each of them? What happens when we also want to add spheres or triangles as intersectable primitives? If we carry on like this, we’ll end up with an unmanageable mess of spaghetti code which would be hard to maintain in the future…</p><p>Luckily, many <em>object-oriented programming languages</em> such as <em>C++</em> have built-in features to add layers of abstraction. If we think about it, we don’t really care about <em>what</em> a ray intersects with; there should just be function defined for each primitive which handles that intersection for us. As such, each of the primitives/objects we implement needs some kind of intersection method. Furthermore, we should track a set of variables that describes the intersection, like the <em>intersection point</em>, the <em>normal vector</em> at that intersection and the value for $t$ at that intersection. Time to cram all this stuff in an abstract, <em>intersectable</em> class:</p><div file="intersectable.h" class="language-c++ highlighter-rouge"><div class="code-header"> <span data-label-text="intersectable.h"><i class="far fa-file-code"></i></span> <button aria-label="copy" data-title-succeed="Copied!"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+</pre><td class="rouge-code"><pre><span class="cp">#pragma once
+</span>
+<span class="c1">// this struct holds the data which is saved when a ray intersection happens</span>
+<span class="k">struct</span> <span class="nc">intersect_data</span>
+<span class="p">{</span>
+    <span class="kt">float</span> <span class="n">t</span><span class="p">;</span>
+    <span class="n">float3</span> <span class="n">point</span><span class="p">;</span>
+    <span class="n">float3</span> <span class="n">normal</span><span class="p">;</span>
+<span class="p">};</span>
+
+<span class="c1">// an abstract class which describes primitives/objects which can be intersected</span>
+<span class="k">class</span> <span class="nc">intersectable</span>
+<span class="p">{</span>
+<span class="nl">public:</span>
+    <span class="k">virtual</span> <span class="kt">bool</span> <span class="n">intersect</span><span class="p">(</span><span class="k">const</span> <span class="n">ray</span><span class="o">&amp;</span> <span class="n">r</span><span class="p">,</span> <span class="n">intersect_data</span><span class="o">&amp;</span> <span class="n">data</span><span class="p">,</span> <span class="kt">float</span> <span class="n">t_min</span><span class="p">,</span> <span class="kt">float</span> <span class="n">t_max</span><span class="p">)</span> <span class="k">const</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+<span class="p">};</span>
+</pre></table></code></div></div><blockquote class="prompt-info"><div><p>The abstract <code class="language-plaintext highlighter-rouge">intersect</code> method also takes two scalar values, <code class="language-plaintext highlighter-rouge">t_min</code> and <code class="language-plaintext highlighter-rouge">t_max</code>. These will be used to define an interval for which the intersection is valid. This will be useful in the future!</p></div></blockquote><h3 id="how-do-you-like-your-normals"><span class="mr-2">How do you like your normals?</span><a href="#how-do-you-like-your-normals" class="anchor text-muted"><i class="fas fa-hashtag"></i></a></h3><p>There’s a small design decision to make regarding normal vectors. A normal can point <strong>outwards</strong> or <strong>inwards</strong>, depending how you look at the surface. For example, how do we handle a normal when we look at the <em>backside</em> of a plane?</p><p>As of now, the normal always points outwards from the surface. Another possibility is to always point the normal vector against the ray direction. In this case the normal will point outwards when we are in front of a surface, and inwards when we are on the backside of a surface.</p><p>Eventually we want to know which side of the surface we’re facing to apply the rendering in a correct manner. For this application I have chosen to always <strong>point the normal against the incident ray</strong>, as this allows us to save the information together with the intersection data.</p><p>We’ll add a <em>boolean</em> to the intersection data which indicates whether the current intersection is from the front or the back of the surface, in turn flipping the normal accordingly via a function:</p><div class="language-c++ nolineno highlighter-rouge" file="intersectable.h"><div class="code-header"> <span data-label-text="intersectable.h"><i class="far fa-file-code"></i></span> <button aria-label="copy" data-title-succeed="Copied!"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+</pre><td class="rouge-code"><pre><span class="c1">// this struct holds the data which is saved when a ray intersection happens</span>
+<span class="k">struct</span> <span class="nc">intersect_data</span>
+<span class="p">{</span>
+    <span class="kt">float</span> <span class="n">t</span><span class="p">;</span>
+    <span class="n">float3</span> <span class="n">point</span><span class="p">;</span>
+    <span class="n">float3</span> <span class="n">normal</span><span class="p">;</span>
+
+    <span class="c1">// check whether we are currently in front or behind/inside of the object,</span>
+    <span class="c1">// flipping the normal accordingly</span>
+    <span class="kt">bool</span> <span class="n">front</span><span class="p">;</span>
+    <span class="kr">inline</span> <span class="kt">void</span> <span class="n">set_front</span><span class="p">(</span><span class="k">const</span> <span class="n">ray</span><span class="o">&amp;</span> <span class="n">r</span><span class="p">,</span> <span class="k">const</span> <span class="n">float3</span><span class="o">&amp;</span> <span class="n">outward_normal</span><span class="p">)</span>
+    <span class="p">{</span>
+        <span class="c1">// the dot product is negative if the ray direction and normal have opposite directions</span>
+        <span class="n">front</span> <span class="o">=</span> <span class="n">dot</span><span class="p">(</span><span class="n">r</span><span class="p">.</span><span class="n">direction</span><span class="p">(),</span> <span class="n">outward_normal</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mf">0.0</span><span class="n">f</span><span class="p">;</span>
+
+        <span class="c1">// possibly flip the normal direction if we are behind/inside the object</span>
+        <span class="n">normal</span> <span class="o">=</span> <span class="n">normalize</span><span class="p">(</span><span class="n">front</span> <span class="o">?</span> <span class="n">outward_normal</span> <span class="o">:</span> <span class="o">-</span><span class="n">outward_normal</span><span class="p">);</span>
+    <span class="p">}</span>
+<span class="p">};</span>
+</pre></table></code></div></div><h3 id="re-implementing-infinite-planes"><span class="mr-2">Re-implementing infinite planes</span><a href="#re-implementing-infinite-planes" class="anchor text-muted"><i class="fas fa-hashtag"></i></a></h3><p>With the abstract class in place for primitive/object intersection, we can rewrite our infinite plane implementation. First, I defined a new constant which denotes a very small floating point number. This will be useful in a lot of situations:</p><div class="language-c++ nolineno highlighter-rouge" file="common.h"><div class="code-header"> <span data-label-text="common.h"><i class="far fa-file-code"></i></span> <button aria-label="copy" data-title-succeed="Copied!"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+</pre><td class="rouge-code"><pre><span class="cp">#define EPSILON     0.00001f
+</span></pre></table></code></div></div><p>I also added an additional function which checks whether a value lies between two other values or not:</p><div class="language-c++ nolineno highlighter-rouge" file="precomp.h"><div class="code-header"> <span data-label-text="precomp.h"><i class="far fa-file-code"></i></span> <button aria-label="copy" data-title-succeed="Copied!"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+</pre><td class="rouge-code"><pre><span class="kr">inline</span> <span class="kt">bool</span> <span class="nf">between</span><span class="p">(</span><span class="kt">float</span> <span class="n">f</span><span class="p">,</span> <span class="kt">float</span> <span class="n">a</span><span class="p">,</span> <span class="kt">float</span> <span class="n">b</span><span class="p">)</span> <span class="p">{</span> <span class="k">return</span> <span class="n">clamp</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">)</span> <span class="o">==</span> <span class="n">f</span><span class="p">;</span> <span class="p">}</span>
+</pre></table></code></div></div><p>The new plane class inherits from the abstract <code class="language-plaintext highlighter-rouge">intersectable</code> class as follows:</p><div file="plane.h" class="language-c++ highlighter-rouge"><div class="code-header"> <span data-label-text="plane.h"><i class="far fa-file-code"></i></span> <button aria-label="copy" data-title-succeed="Copied!"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+</pre><td class="rouge-code"><pre><span class="cp">#pragma once
+</span>
+<span class="k">class</span> <span class="nc">plane</span> <span class="o">:</span> <span class="k">public</span> <span class="n">intersectable</span>
+<span class="p">{</span>
+<span class="nl">private:</span>
+    <span class="n">float3</span> <span class="n">m_normal</span><span class="p">;</span>
+    <span class="kt">float</span> <span class="n">m_offset</span><span class="p">;</span>
+
+<span class="nl">public:</span>
+    <span class="n">plane</span><span class="p">()</span> <span class="p">{}</span>
+    <span class="n">plane</span><span class="p">(</span><span class="n">float3</span> <span class="n">normal</span><span class="p">,</span> <span class="kt">float</span> <span class="n">offset</span><span class="p">)</span> <span class="o">:</span> <span class="n">m_normal</span><span class="p">(</span><span class="n">normalize</span><span class="p">(</span><span class="n">normal</span><span class="p">)),</span> <span class="n">m_offset</span><span class="p">(</span><span class="n">offset</span><span class="p">)</span> <span class="p">{}</span>
+
+    <span class="k">virtual</span> <span class="kt">bool</span> <span class="n">intersect</span><span class="p">(</span><span class="k">const</span> <span class="n">ray</span><span class="o">&amp;</span> <span class="n">r</span><span class="p">,</span> <span class="n">intersect_data</span><span class="o">&amp;</span> <span class="n">data</span><span class="p">,</span> <span class="kt">float</span> <span class="n">t_min</span><span class="p">,</span> <span class="kt">float</span> <span class="n">t_max</span><span class="p">)</span> <span class="k">const</span> <span class="k">override</span><span class="p">;</span>
+<span class="p">};</span>
+</pre></table></code></div></div><p>It holds a normal and an offset needed to define a plane. It has a more specific implementation of the <code class="language-plaintext highlighter-rouge">intersect</code> method as well; the code is basically the same as before, with some minor edits to save/update the intersection data:</p><div file="plane.cpp" class="language-c++ highlighter-rouge"><div class="code-header"> <span data-label-text="plane.cpp"><i class="far fa-file-code"></i></span> <button aria-label="copy" data-title-succeed="Copied!"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+</pre><td class="rouge-code"><pre><span class="cp">#include</span> <span class="cpf">"precomp.h"</span><span class="cp">
+</span>
+<span class="kt">bool</span> <span class="n">plane</span><span class="o">::</span><span class="n">intersect</span><span class="p">(</span><span class="k">const</span> <span class="n">ray</span><span class="o">&amp;</span> <span class="n">r</span><span class="p">,</span> <span class="n">intersect_data</span><span class="o">&amp;</span> <span class="n">data</span><span class="p">,</span> <span class="kt">float</span> <span class="n">t_min</span><span class="p">,</span> <span class="kt">float</span> <span class="n">t_max</span><span class="p">)</span> <span class="k">const</span>
+<span class="p">{</span>
+    <span class="c1">// D . N -&gt; to avoid division by zero,</span>
+    <span class="c1">// if the calculated value is close to 0 (ray parallel with plane) return false</span>
+    <span class="kt">float</span> <span class="n">denominator</span> <span class="o">=</span> <span class="n">dot</span><span class="p">(</span><span class="n">r</span><span class="p">.</span><span class="n">direction</span><span class="p">(),</span> <span class="n">m_normal</span><span class="p">);</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">abs</span><span class="p">(</span><span class="n">denominator</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">EPSILON</span><span class="p">)</span> <span class="k">return</span> <span class="nb">false</span><span class="p">;</span>
+
+    <span class="c1">// O . N + d</span>
+    <span class="c1">// -(O . N + d) / (D . N)</span>
+    <span class="kt">float</span> <span class="n">numerator</span> <span class="o">=</span> <span class="n">dot</span><span class="p">(</span><span class="n">r</span><span class="p">.</span><span class="n">origin</span><span class="p">(),</span> <span class="n">m_normal</span><span class="p">)</span> <span class="o">+</span> <span class="n">m_offset</span><span class="p">;</span>
+    <span class="kt">float</span> <span class="n">t</span> <span class="o">=</span> <span class="o">-</span><span class="n">numerator</span> <span class="o">/</span> <span class="n">denominator</span><span class="p">;</span>
+
+    <span class="c1">// reject t if the value doesn't lie between the given boundaries</span>
+    <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">between</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">t_min</span><span class="p">,</span> <span class="n">t_max</span><span class="p">))</span> <span class="k">return</span> <span class="nb">false</span><span class="p">;</span>
+
+    <span class="c1">// update the intersection data</span>
+    <span class="n">data</span><span class="p">.</span><span class="n">t</span> <span class="o">=</span> <span class="n">t</span><span class="p">;</span>
+    <span class="n">data</span><span class="p">.</span><span class="n">point</span> <span class="o">=</span> <span class="n">r</span><span class="p">.</span><span class="n">point</span><span class="p">(</span><span class="n">t</span><span class="p">);</span>
+    <span class="n">data</span><span class="p">.</span><span class="n">set_front</span><span class="p">(</span><span class="n">r</span><span class="p">,</span> <span class="n">m_normal</span><span class="p">);</span>
+
+    <span class="c1">// the ray intersected with the plane</span>
+    <span class="k">return</span> <span class="nb">true</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></table></code></div></div><p>Now that’s all out of the way, we can update <code class="language-plaintext highlighter-rouge">mantaray.cpp</code> to use the plane object and the underlying <code class="language-plaintext highlighter-rouge">intersect</code> method instead:</p><div class="language-c++ nolineno highlighter-rouge" file="mantaray.cpp"><div class="code-header"> <span data-label-text="mantaray.cpp"><i class="far fa-file-code"></i></span> <button aria-label="copy" data-title-succeed="Copied!"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+</pre><td class="rouge-code"><pre><span class="n">plane</span> <span class="n">p</span><span class="p">;</span>
+
+<span class="c1">// anything that happens only once at application start goes here</span>
+<span class="kt">void</span> <span class="n">mantaray</span><span class="o">::</span><span class="n">Init</span><span class="p">()</span>
+<span class="p">{</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="n">plane</span><span class="p">(</span><span class="n">float3</span><span class="p">(</span><span class="mf">0.0</span><span class="n">f</span><span class="p">,</span> <span class="o">-</span><span class="mf">1.0</span><span class="n">f</span><span class="p">,</span> <span class="mf">0.0</span><span class="n">f</span><span class="p">),</span> <span class="mf">1.0</span><span class="n">f</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="c1">// returns a background gradient depending on the y direction of a primary ray</span>
+<span class="n">color</span> <span class="n">ray_color</span><span class="p">(</span><span class="k">const</span> <span class="n">ray</span><span class="o">&amp;</span> <span class="n">r</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="c1">// check for a ray/plane intersection, return green if they intersect</span>
+    <span class="n">intersect_data</span> <span class="n">temp_data</span><span class="p">;</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">p</span><span class="p">.</span><span class="n">intersect</span><span class="p">(</span><span class="n">r</span><span class="p">,</span> <span class="n">temp_data</span><span class="p">,</span> <span class="mf">0.0</span><span class="n">f</span><span class="p">,</span> <span class="n">LARGE_FLOAT</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">color</span><span class="p">(</span><span class="mf">0.0</span><span class="n">f</span><span class="p">,</span> <span class="mf">1.0</span><span class="n">f</span><span class="p">,</span> <span class="mf">0.0</span><span class="n">f</span><span class="p">);</span>
+        
+    <span class="c1">// if there is no intersection, render the background as usual</span>
+    <span class="c1">// background code here...</span>
+<span class="p">}</span>
+</pre></table></code></div></div><p>Running the application now produces the same result as before, but on the back-end things have been tidied up and are ready for expansion!</p><h2 id="gettin-spherical"><span class="mr-2">Gettin’ spherical</span><a href="#gettin-spherical" class="anchor text-muted"><i class="fas fa-hashtag"></i></a></h2><p>So let’s expand! Next on the list of primitives to implement is a good ol’ sphere. Once again it will inherit from the abstract <code class="language-plaintext highlighter-rouge">intersectable</code> class.</p><p>Instead of a normal and an offset, a sphere is defined by its <em>center position</em> and a <em>radius</em>. Aside from that, the class implementation is pretty much identical to that of the infinite plane:</p><div file="sphere.h" class="language-c++ highlighter-rouge"><div class="code-header"> <span data-label-text="sphere.h"><i class="far fa-file-code"></i></span> <button aria-label="copy" data-title-succeed="Copied!"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+</pre><td class="rouge-code"><pre><span class="cp">#pragma once
+</span>
+<span class="k">class</span> <span class="nc">sphere</span> <span class="o">:</span> <span class="k">public</span> <span class="n">intersectable</span>
+<span class="p">{</span>
+<span class="nl">private:</span>
+    <span class="n">float3</span> <span class="n">m_center</span><span class="p">;</span>
+    <span class="kt">float</span> <span class="n">m_radius</span><span class="p">;</span>
+
+<span class="nl">public:</span>
+    <span class="n">sphere</span><span class="p">()</span> <span class="p">{}</span>
+    <span class="n">sphere</span><span class="p">(</span><span class="n">float3</span> <span class="n">center</span><span class="p">,</span> <span class="kt">float</span> <span class="n">radius</span><span class="p">)</span> <span class="o">:</span> <span class="n">m_center</span><span class="p">(</span><span class="n">center</span><span class="p">),</span> <span class="n">m_radius</span><span class="p">(</span><span class="n">radius</span><span class="p">)</span> <span class="p">{}</span>
+
+    <span class="k">virtual</span> <span class="kt">bool</span> <span class="n">intersect</span><span class="p">(</span><span class="k">const</span> <span class="n">ray</span><span class="o">&amp;</span> <span class="n">r</span><span class="p">,</span> <span class="n">intersect_data</span><span class="o">&amp;</span> <span class="n">data</span><span class="p">,</span> <span class="kt">float</span> <span class="n">t_min</span><span class="p">,</span> <span class="kt">float</span> <span class="n">t_max</span><span class="p">)</span> <span class="k">const</span> <span class="k">override</span><span class="p">;</span>
+<span class="p">};</span>
+</pre></table></code></div></div><h3 id="implementing-the-sphere-intersect-method"><span class="mr-2">Implementing the sphere intersect method</span><a href="#implementing-the-sphere-intersect-method" class="anchor text-muted"><i class="fas fa-hashtag"></i></a></h3><p>Now for the special version of the ray/sphere <code class="language-plaintext highlighter-rouge">intersect</code> function. Lo and behold, there exists an equation to describe a sphere with a radius $r$ centered at the origin:</p>\[P^2 = r^2\]<p>This states that any point $P$ is on the sphere’s surface if the equation holds. The point is <em>inside</em> the sphere if $P^2 \lt r^2$ and the point is <em>outside</em> the sphere if $P^2 \gt r^2$.</p><p>However, the sphere isn’t necessarily located at the origin but at any point $C$, so we need to update the formula a bit:</p>\[(P - C)^2 = r^2\]<p>Which is equal to (dot product rule):</p>\[(P - C) \cdot (P - C) = r^2\]<p>Once again we can substitute P for the ray equation $P(t) = O + t\overrightarrow{D}$, leaving us with this:</p>\[(O + t\overrightarrow{D} - C) \cdot (O + t\overrightarrow{D} - C) = r^2\]<p>Time to further expand this equation and solve it with the magic that is vector algebra. I will spare you the details, but eventually we end up with this quadratic formula:</p>\[\overrightarrow{D} \cdot \overrightarrow{D}t^2 + 2\overrightarrow{D} \cdot (O - C)t + (O - C)^2 - r^2 = 0\]<p>If you weren’t vast asleep during math class at high school, you probably ran into the <em>abc-formula</em> before which we can use to solve quadratic functions:</p>\[t = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}\]<p>Simply plugging in the <em>abc</em> terms using the quadratic function we found gives:</p>\[a = \overrightarrow{D} \cdot \overrightarrow{D}\] \[b = 2\overrightarrow{D} \cdot (O - C)\] \[c = (O - C)^2 - r^2\]<p>Now we can solve the formula to find a value for $t$. It can have 0, 1 or 2 solutions depending on the value below the square root (called the <em>discriminant</em>):</p><ol><li>If the discriminant is <strong>negative</strong> there are no solutions → the ray misses the sphere;<li>If the discriminant is <strong>zero</strong> there is one solution → the ray shaves along the surface of the sphere, hitting it in exactly one point;<li>If the discriminant is <strong>positive</strong> there are two solutions → the ray goes fully through the sphere and hits its surface while entering and exiting the sphere.</ol><h3 id="optimizing-the-yet-to-be-implemented-sphere-intersection-method"><span class="mr-2">Optimizing the yet-to-be-implemented sphere intersection method</span><a href="#optimizing-the-yet-to-be-implemented-sphere-intersection-method" class="anchor text-muted"><i class="fas fa-hashtag"></i></a></h3><p>Although we can already implement the <code class="language-plaintext highlighter-rouge">intersect</code> method as it stands, there are some easy optimizations we can do to simplify and speed up the calculations.</p><p>First off, notice how the $b$ term we got from our quadratic function has a factor of 2 in it. We can use this to our advantage by simplifying the <em>abc-formula</em> even further when we consider $b = 2h$:</p>\[\frac{-2h \pm \sqrt{(2h)^2 - 4ac}}{2a}\] \[\rightarrow \frac{-2h \pm 2\sqrt{h^2 - ac}}{2a}\] \[\rightarrow \frac{-h \pm \sqrt{h^2 - ac}}{a}\]<p>The $b$ term now changes to $h = \overrightarrow{D} \cdot (O - C)$.</p><p>Next, consider that a the dot product of a vector with itself is equal to the squared length of that vector. We got an $a$ term which states $a = \overrightarrow{D} \cdot \overrightarrow{D}$, so we can rewrite this part as $a = ||\overrightarrow{D}||^2$. But wait… In the project, we ensured that the directional vector of a ray is always normalized! This means that its length will always be exactly 1, no matter in which direction it points:</p>\[a = 1^2 \rightarrow a = 1\]<p>Awesome! The $a$ term is now a simple constant, so there’s no need to calculate it. In fact… We don’t need it anymore at all:</p>\[\frac{-h \pm \sqrt{h^2 - 1c}}{1}\] \[\rightarrow -h \pm \sqrt{h^2 - c}\]<p>Okay… I think this is as fancy as we can get for now, let’s get it implemented (finally!):</p><div file="sphere.cpp" class="language-c++ highlighter-rouge"><div class="code-header"> <span data-label-text="sphere.cpp"><i class="far fa-file-code"></i></span> <button aria-label="copy" data-title-succeed="Copied!"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+</pre><td class="rouge-code"><pre><span class="cp">#include</span> <span class="cpf">"precomp.h"</span><span class="cp">
+</span>
+<span class="kt">bool</span> <span class="n">sphere</span><span class="o">::</span><span class="n">intersect</span><span class="p">(</span><span class="k">const</span> <span class="n">ray</span><span class="o">&amp;</span> <span class="n">r</span><span class="p">,</span> <span class="n">intersect_data</span><span class="o">&amp;</span> <span class="n">data</span><span class="p">,</span> <span class="kt">float</span> <span class="n">t_min</span><span class="p">,</span> <span class="kt">float</span> <span class="n">t_max</span><span class="p">)</span> <span class="k">const</span>
+<span class="p">{</span>
+    <span class="c1">// O - C</span>
+    <span class="c1">// D . (O - C)</span>
+    <span class="c1">// (O - C)^2 - r^2</span>
+    <span class="n">float3</span> <span class="n">oc</span> <span class="o">=</span> <span class="n">r</span><span class="p">.</span><span class="n">origin</span><span class="p">()</span> <span class="o">-</span> <span class="n">m_center</span><span class="p">;</span>
+    <span class="kt">float</span> <span class="n">h</span> <span class="o">=</span> <span class="n">dot</span><span class="p">(</span><span class="n">r</span><span class="p">.</span><span class="n">direction</span><span class="p">(),</span> <span class="n">oc</span><span class="p">);</span>
+    <span class="kt">float</span> <span class="n">c</span> <span class="o">=</span> <span class="n">sqrLength</span><span class="p">(</span><span class="n">oc</span><span class="p">)</span> <span class="o">-</span> <span class="n">m_radius</span> <span class="o">*</span> <span class="n">m_radius</span><span class="p">;</span>
+
+    <span class="c1">// h^2 - c</span>
+    <span class="kt">float</span> <span class="n">discriminant</span> <span class="o">=</span> <span class="n">h</span> <span class="o">*</span> <span class="n">h</span> <span class="o">-</span> <span class="n">c</span><span class="p">;</span>
+
+    <span class="c1">// if the discriminant is negative, there was no ray/sphere intersection</span>
+    <span class="c1">// calculate the square root afterwards</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">discriminant</span> <span class="o">&lt;</span> <span class="mf">0.0</span><span class="n">f</span><span class="p">)</span> <span class="k">return</span> <span class="nb">false</span><span class="p">;</span>
+    <span class="kt">float</span> <span class="n">sqrt_discriminant</span> <span class="o">=</span> <span class="n">sqrt</span><span class="p">(</span><span class="n">discriminant</span><span class="p">);</span>
+
+    <span class="c1">// abc-formula, try shortest distance solution first</span>
+    <span class="c1">// if both solutions fall outside the given boundaries, reject the intersection</span>
+    <span class="kt">float</span> <span class="n">t</span> <span class="o">=</span> <span class="o">-</span><span class="n">h</span> <span class="o">-</span> <span class="n">sqrt_discriminant</span><span class="p">;</span>
+    <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">between</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">t_min</span><span class="p">,</span> <span class="n">t_max</span><span class="p">))</span>
+    <span class="p">{</span>
+        <span class="n">t</span> <span class="o">=</span> <span class="o">-</span><span class="n">h</span> <span class="o">+</span> <span class="n">sqrt_discriminant</span><span class="p">;</span>
+        <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">between</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">t_min</span><span class="p">,</span> <span class="n">t_max</span><span class="p">))</span> <span class="k">return</span> <span class="nb">false</span><span class="p">;</span>
+    <span class="p">}</span>
+
+    <span class="c1">// update the intersection data</span>
+    <span class="c1">// the normal of the sphere is the vector between the intersection,</span>
+    <span class="c1">// and the sphere's center</span>
+    <span class="n">data</span><span class="p">.</span><span class="n">t</span> <span class="o">=</span> <span class="n">t</span><span class="p">;</span>
+    <span class="n">data</span><span class="p">.</span><span class="n">point</span> <span class="o">=</span> <span class="n">r</span><span class="p">.</span><span class="n">point</span><span class="p">(</span><span class="n">t</span><span class="p">);</span>
+    <span class="n">data</span><span class="p">.</span><span class="n">set_front</span><span class="p">(</span><span class="n">r</span><span class="p">,</span> <span class="n">data</span><span class="p">.</span><span class="n">point</span> <span class="o">-</span> <span class="n">m_center</span><span class="p">);</span>
+
+    <span class="c1">// the ray intersected with the sphere</span>
+    <span class="k">return</span> <span class="nb">true</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></table></code></div></div><p>Initializing a new sphere object in <code class="language-plaintext highlighter-rouge">mantaray.cpp</code> gives the following result:</p><p><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3C/svg%3E" data-src="https://i.postimg.cc/GpjydgJh/sphere-render.png" alt="Sphere Render" width="512" height="512" data-proofer-ignore> <em>What about a red sun to complement the scene?</em></p><h2 id="triangle-time"><span class="mr-2">Triangle time</span><a href="#triangle-time" class="anchor text-muted"><i class="fas fa-hashtag"></i></a></h2><p>One more primitive should do it for now! And it might be the most important one, as pretty much everything in graphical applications consists out of the darn things. Once again we inherit from the <code class="language-plaintext highlighter-rouge">intersectable</code> class.</p><p>A triangle is defined by 3 <em>vertices</em> (3D points that define the corners of the triangle) and we’ll add a <em>centroid</em> as well, which is the point in the very center of the triangle:</p><div file="triangle.h" class="language-c++ highlighter-rouge"><div class="code-header"> <span data-label-text="triangle.h"><i class="far fa-file-code"></i></span> <button aria-label="copy" data-title-succeed="Copied!"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+</pre><td class="rouge-code"><pre><span class="cp">#pragma once
+</span>
+<span class="k">class</span> <span class="nc">triangle</span> <span class="o">:</span> <span class="k">public</span> <span class="n">intersectable</span>
+<span class="p">{</span>
+<span class="nl">private:</span>
+    <span class="n">float3</span> <span class="n">m_v0</span><span class="p">,</span> <span class="n">m_v1</span><span class="p">,</span> <span class="n">m_v2</span><span class="p">;</span>
+    <span class="n">float3</span> <span class="n">m_centroid</span><span class="p">;</span>
+
+<span class="nl">public:</span>
+    <span class="n">triangle</span><span class="p">()</span> <span class="p">{}</span>
+    <span class="n">triangle</span><span class="p">(</span><span class="n">float3</span> <span class="n">v0</span><span class="p">,</span> <span class="n">float3</span> <span class="n">v1</span><span class="p">,</span> <span class="n">float3</span> <span class="n">v2</span><span class="p">)</span>
+        <span class="o">:</span> <span class="n">m_v0</span><span class="p">(</span><span class="n">v0</span><span class="p">),</span> <span class="n">m_v1</span><span class="p">(</span><span class="n">v1</span><span class="p">),</span> <span class="n">m_v2</span><span class="p">(</span><span class="n">v2</span><span class="p">),</span> <span class="n">m_centroid</span><span class="p">((</span><span class="n">v0</span> <span class="o">+</span> <span class="n">v1</span> <span class="o">+</span> <span class="n">v2</span><span class="p">)</span> <span class="o">/</span> <span class="mf">3.0</span><span class="n">f</span><span class="p">)</span> <span class="p">{}</span>
+
+    <span class="k">virtual</span> <span class="kt">bool</span> <span class="n">intersect</span><span class="p">(</span><span class="k">const</span> <span class="n">ray</span><span class="o">&amp;</span> <span class="n">r</span><span class="p">,</span> <span class="n">intersect_data</span><span class="o">&amp;</span> <span class="n">data</span><span class="p">,</span> <span class="kt">float</span> <span class="n">t_min</span><span class="p">,</span> <span class="kt">float</span> <span class="n">t_max</span><span class="p">)</span> <span class="k">const</span> <span class="k">override</span><span class="p">;</span>
+<span class="p">};</span>
+</pre></table></code></div></div><p>As for the triangle specific intersection method, I uh… “borrowed” it from Mr. Möller and Mr. Trumbore; the <a href="https://en.wikipedia.org/wiki/M%C3%B6ller%E2%80%93Trumbore_intersection_algorithm">Möller-Trumbore intersection algorithm</a>. There’s no reason to re-invent the wheel when bright minds already figured out a fast solution, so let’s just use that algorithm and get this show on the road:</p><div file="triangle.cpp" class="language-c++ highlighter-rouge"><div class="code-header"> <span data-label-text="triangle.cpp"><i class="far fa-file-code"></i></span> <button aria-label="copy" data-title-succeed="Copied!"><i class="far fa-clipboard"></i></button></div><div class="highlight"><code><table class="rouge-table"><tbody><tr><td class="rouge-gutter gl"><pre class="lineno">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+</pre><td class="rouge-code"><pre><span class="cp">#include</span> <span class="cpf">"precomp.h"</span><span class="cp">
+</span>
+<span class="kt">bool</span> <span class="n">triangle</span><span class="o">::</span><span class="n">intersect</span><span class="p">(</span><span class="k">const</span> <span class="n">ray</span><span class="o">&amp;</span> <span class="n">r</span><span class="p">,</span> <span class="n">intersect_data</span><span class="o">&amp;</span> <span class="n">data</span><span class="p">,</span> <span class="kt">float</span> <span class="n">t_min</span><span class="p">,</span> <span class="kt">float</span> <span class="n">t_max</span><span class="p">)</span> <span class="k">const</span>
+<span class="p">{</span>
+    <span class="n">float3</span> <span class="n">edge1</span> <span class="o">=</span> <span class="n">m_v1</span> <span class="o">-</span> <span class="n">m_v0</span><span class="p">;</span>
+    <span class="n">float3</span> <span class="n">edge2</span> <span class="o">=</span> <span class="n">m_v2</span> <span class="o">-</span> <span class="n">m_v0</span><span class="p">;</span>
+    <span class="n">float3</span> <span class="n">h</span> <span class="o">=</span> <span class="n">cross</span><span class="p">(</span><span class="n">r</span><span class="p">.</span><span class="n">direction</span><span class="p">(),</span> <span class="n">edge2</span><span class="p">);</span>
+
+    <span class="c1">// calculate 'a' first, if it's almost 0 (ray parallel with triangle), return false</span>
+    <span class="kt">float</span> <span class="n">a</span> <span class="o">=</span> <span class="n">dot</span><span class="p">(</span><span class="n">edge1</span><span class="p">,</span> <span class="n">h</span><span class="p">);</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">between</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="o">-</span><span class="n">EPSILON</span><span class="p">,</span> <span class="n">EPSILON</span><span class="p">))</span> <span class="k">return</span> <span class="nb">false</span><span class="p">;</span>
+
+    <span class="kt">float</span> <span class="n">f</span> <span class="o">=</span> <span class="mf">1.0</span><span class="n">f</span> <span class="o">/</span> <span class="n">a</span><span class="p">;</span>
+    <span class="n">float3</span> <span class="n">s</span> <span class="o">=</span> <span class="n">r</span><span class="p">.</span><span class="n">origin</span><span class="p">()</span> <span class="o">-</span> <span class="n">m_v0</span><span class="p">;</span>
+    <span class="kt">float</span> <span class="n">u</span> <span class="o">=</span> <span class="n">f</span> <span class="o">*</span> <span class="n">dot</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">h</span><span class="p">);</span>
+    <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">between</span><span class="p">(</span><span class="n">u</span><span class="p">,</span> <span class="mf">0.0</span><span class="n">f</span><span class="p">,</span> <span class="mf">1.0</span><span class="n">f</span><span class="p">))</span> <span class="k">return</span> <span class="nb">false</span><span class="p">;</span>
+
+    <span class="n">float3</span> <span class="n">q</span> <span class="o">=</span> <span class="n">cross</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">edge1</span><span class="p">);</span>
+    <span class="kt">float</span> <span class="n">v</span> <span class="o">=</span> <span class="n">f</span> <span class="o">*</span> <span class="n">dot</span><span class="p">(</span><span class="n">r</span><span class="p">.</span><span class="n">direction</span><span class="p">(),</span> <span class="n">q</span><span class="p">);</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">v</span> <span class="o">&lt;</span> <span class="mf">0.0</span><span class="n">f</span> <span class="o">||</span> <span class="n">u</span> <span class="o">+</span> <span class="n">v</span> <span class="o">&gt;</span> <span class="mf">1.0</span><span class="n">f</span><span class="p">)</span> <span class="k">return</span> <span class="nb">false</span><span class="p">;</span>
+
+    <span class="kt">float</span> <span class="n">t</span> <span class="o">=</span> <span class="n">f</span> <span class="o">*</span> <span class="n">dot</span><span class="p">(</span><span class="n">edge2</span><span class="p">,</span> <span class="n">q</span><span class="p">);</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">t</span> <span class="o">&lt;</span> <span class="n">EPSILON</span><span class="p">)</span> <span class="k">return</span> <span class="nb">false</span><span class="p">;</span>
+
+    <span class="c1">// reject t if the value doesn't lie between the given boundaries</span>
+    <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">between</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">t_min</span><span class="p">,</span> <span class="n">t_max</span><span class="p">))</span> <span class="k">return</span> <span class="nb">false</span><span class="p">;</span>
+
+    <span class="c1">// update the intersection data</span>
+    <span class="n">data</span><span class="p">.</span><span class="n">t</span> <span class="o">=</span> <span class="n">t</span><span class="p">;</span>
+    <span class="n">data</span><span class="p">.</span><span class="n">point</span> <span class="o">=</span> <span class="n">r</span><span class="p">.</span><span class="n">point</span><span class="p">(</span><span class="n">t</span><span class="p">);</span>
+    <span class="n">data</span><span class="p">.</span><span class="n">set_front</span><span class="p">(</span><span class="n">r</span><span class="p">,</span> <span class="n">cross</span><span class="p">(</span><span class="n">edge1</span><span class="p">,</span> <span class="n">edge2</span><span class="p">));</span>
+
+    <span class="c1">// the ray intersected with the triangle</span>
+    <span class="k">return</span> <span class="nb">true</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></table></code></div></div><p>Popping a triangle object in the scene gives us the final result for this post:</p><p><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3C/svg%3E" data-src="https://i.postimg.cc/0214rZT1/triangle-render.png" alt="Triangle Render" width="512" height="512" data-proofer-ignore> <em>I’m all out of witty remarks. Random blue triangle, that’s about it!</em></p><p>Well, I’m supposed to be writing a post, not a book. 📚</p><p>I should probably cut it off riiiiight about here for now. Next time we will add another layer of abstraction by creating a <strong>list of intersectable objects</strong>, before diving into pretty ray tracing stuff for realsies.</p><p>Congratulations on making it through this math explosion, see ya next time!</p></div><div class="post-tail-wrapper text-muted"><div class="post-meta mb-3"> <i class="far fa-folder-open fa-fw mr-1"></i> <a href='/categories/projects/'>Projects</a>, <a href='/categories/manta-ray/'>Manta Ray</a></div><div class="post-tags"> <i class="fa fa-tags fa-fw mr-1"></i> <a href="/tags/c/" class="post-tag no-text-decoration" >c++</a> <a href="/tags/ray-tracing/" class="post-tag no-text-decoration" >ray tracing</a> <a href="/tags/vectors/" class="post-tag no-text-decoration" >vectors</a> <a href="/tags/intersections/" class="post-tag no-text-decoration" >intersections</a> <a href="/tags/abstraction/" class="post-tag no-text-decoration" >abstraction</a></div><div class="post-tail-bottom d-flex justify-content-between align-items-center mt-3 pt-5 pb-2"><div class="license-wrapper"> This post is licensed under <a href="https://creativecommons.org/licenses/by/4.0/"> CC BY 4.0 </a> by the author.</div><div class="share-wrapper"> <span class="share-label text-muted mr-1">Share</span> <span class="share-icons"> <a href="https://twitter.com/intent/tweet?text=Building+a+Ray+Tracer+-+Part+3%3A+Intersection+Galore%21+-+Mark%27s+Lil%27+Corner&url=https%3A%2F%2Fmarkieautarkie.github.io%2Fposts%2Fbuilding-a-ray-tracer-part-3-intersection-galore%2F" data-toggle="tooltip" data-placement="top" title="Twitter" target="_blank" rel="noopener" aria-label="Twitter"> <i class="fa-fw fab fa-twitter"></i> </a> <a href="https://www.facebook.com/sharer/sharer.php?title=Building+a+Ray+Tracer+-+Part+3%3A+Intersection+Galore%21+-+Mark%27s+Lil%27+Corner&u=https%3A%2F%2Fmarkieautarkie.github.io%2Fposts%2Fbuilding-a-ray-tracer-part-3-intersection-galore%2F" data-toggle="tooltip" data-placement="top" title="Facebook" target="_blank" rel="noopener" aria-label="Facebook"> <i class="fa-fw fab fa-facebook-square"></i> </a> <a href="https://t.me/share/url?url=https%3A%2F%2Fmarkieautarkie.github.io%2Fposts%2Fbuilding-a-ray-tracer-part-3-intersection-galore%2F&text=Building+a+Ray+Tracer+-+Part+3%3A+Intersection+Galore%21+-+Mark%27s+Lil%27+Corner" data-toggle="tooltip" data-placement="top" title="Telegram" target="_blank" rel="noopener" aria-label="Telegram"> <i class="fa-fw fab fa-telegram"></i> </a> <i id="copy-link" class="fa-fw fas fa-link small" data-toggle="tooltip" data-placement="top" title="Copy link" data-title-succeed="Link copied successfully!"> </i> </span></div></div></div></div></div><div id="panel-wrapper" class="col-xl-3 pl-2 text-muted"><div class="access"><div id="access-lastmod" class="post"><div class="panel-heading">Recently Updated</div><ul class="post-content pl-0 pb-1 ml-1 mt-2"><li><a href="/posts/building-a-ray-tracer-part-3-intersection-galore/">Building a Ray Tracer - Part 3: Intersection Galore!</a><li><a href="/posts/building-a-ray-tracer-part-2-vectors-rays-and-cameras/">Building a Ray Tracer - Part 2: Vectors, Rays and Cameras</a><li><a href="/posts/building-a-ray-tracer-part-1-hello-manta-ray/">Building a Ray Tracer - Part 1: Hello Manta Ray!</a><li><a href="/posts/first-post/">First Post!</a></ul></div><div id="access-tags"><div class="panel-heading">Trending Tags</div><div class="d-flex flex-wrap mt-3 mb-1 mr-3"> <a class="post-tag" href="/tags/c/">c++</a> <a class="post-tag" href="/tags/ray-tracing/">ray tracing</a> <a class="post-tag" href="/tags/abstraction/">abstraction</a> <a class="post-tag" href="/tags/intersections/">intersections</a> <a class="post-tag" href="/tags/introduction/">introduction</a> <a class="post-tag" href="/tags/vectors/">vectors</a></div></div></div><script src="https://cdn.jsdelivr.net/gh/afeld/bootstrap-toc@1.0.1/dist/bootstrap-toc.min.js"></script><div id="toc-wrapper" class="pl-0 pr-4 mb-5"><div class="panel-heading pl-3 pt-2 mb-2">Contents</div><nav id="toc" data-toggle="toc"></nav></div></div></div><div class="row"><div id="tail-wrapper" class="col-12 col-lg-11 col-xl-9 pl-3 pr-3 pr-xl-4"><div id="related-posts" class="mt-5 mb-2 mb-sm-4"><h3 class="pt-2 mt-1 mb-4 ml-1" data-toc-skip>Further Reading</h3><div class="card-deck mb-4"><div class="card"> <a href="/posts/building-a-ray-tracer-part-4-powerful-polymorphism/"><div class="card-body"> <em class="small" data-ts="1659180987" data-df="ll" > Jul 30, 2022 </em><h3 class="pt-0 mt-1 mb-3" data-toc-skip>Building a Ray Tracer - Part 4: Powerful Polymorphism</h3><div class="text-muted small"><p> This post is going to tie up the loose ends we left dangling around in the previous post. We put quite some effort into abstracting the setup for intersectable primitives, yet we still have to deal...</p></div></div></a></div><div class="card"> <a href="/posts/building-a-ray-tracer-part-2-vectors-rays-and-cameras/"><div class="card-body"> <em class="small" data-ts="1657566247" data-df="ll" > Jul 11, 2022 </em><h3 class="pt-0 mt-1 mb-3" data-toc-skip>Building a Ray Tracer - Part 2: Vectors, Rays and Cameras</h3><div class="text-muted small"><p> The previous post introduced the ray tracing project Manta Ray, which we put in motion by writing an image to the screen buffer of the renderer. Next, we’re going to take a look at vectors, rays an...</p></div></div></a></div><div class="card"> <a href="/posts/building-a-ray-tracer-part-1-hello-manta-ray/"><div class="card-body"> <em class="small" data-ts="1656757807" data-df="ll" > Jul 2, 2022 </em><h3 class="pt-0 mt-1 mb-3" data-toc-skip>Building a Ray Tracer - Part 1: Hello Manta Ray!</h3><div class="text-muted small"><p> Introduction Many a year ago, my brother got a brand new Nintendo 64 for his birthday. I still fondly remember the first time he flicked it on; seeing that floating Mario head pop up on the CRT in ...</p></div></div></a></div></div></div><div class="post-navigation d-flex justify-content-between"> <a href="/posts/building-a-ray-tracer-part-2-vectors-rays-and-cameras/" class="btn btn-outline-primary" prompt="Older"><p>Building a Ray Tracer - Part 2: Vectors, Rays and Cameras</p></a> <a href="/posts/building-a-ray-tracer-part-4-powerful-polymorphism/" class="btn btn-outline-primary" prompt="Newer"><p>Building a Ray Tracer - Part 4: Powerful Polymorphism</p></a></div><script type="text/javascript"> $(function () { const origin = "https://giscus.app"; const iframe = "iframe.giscus-frame"; const lightTheme = "light"; const darkTheme = "dark_dimmed"; let initTheme = lightTheme; if ($("html[data-mode=dark]").length > 0 || ($("html[data-mode]").length == 0 && window.matchMedia("(prefers-color-scheme: dark)").matches)) { initTheme = darkTheme; } let giscusAttributes = { "src": "https://giscus.app/client.js", "data-repo": "markieautarkie/markieautarkie.github.io", "data-repo-id": "", "data-category": "", "data-category-id": "", "data-mapping": "pathname", "data-reactions-enabled": "1", "data-emit-metadata": "0", "data-theme": initTheme, "data-input-position": "bottom", "data-lang": "en", "crossorigin": "anonymous", "async": "" }; let giscusScript = document.createElement("script"); Object.entries(giscusAttributes).forEach(([key, value]) => giscusScript.setAttribute(key, value)); document.getElementById("tail-wrapper").appendChild(giscusScript); addEventListener("message", (event) => { if (event.source === window && event.data && event.data.direction === ModeToggle.ID) { /* global theme mode changed */ const mode = event.data.message; const theme = (mode === ModeToggle.DARK_MODE ? darkTheme : lightTheme); const message = { setConfig: { theme: theme } }; const giscus = document.querySelector(iframe).contentWindow; giscus.postMessage({ giscus: message }, origin); } }); }); </script></div></div><footer class="row pl-3 pr-3"><div class="col-12 d-flex justify-content-between align-items-center text-muted pl-0 pr-0"><div class="footer-left"><p class="mb-0"> © 2022 <a href="https://github.com/markieautarkie">Mark Berentsen</a>. <span data-toggle="tooltip" data-placement="top" title="Except where otherwise noted, the blog posts on this site are licensed under the Creative Commons Attribution 4.0 International (CC BY 4.0) License by the author.">Some rights reserved.</span></p></div><div class="footer-right"><p class="mb-0"> Powered by <a href="https://jekyllrb.com" target="_blank" rel="noopener">Jekyll</a> with <a href="https://github.com/cotes2020/jekyll-theme-chirpy" target="_blank" rel="noopener">Chirpy</a> theme.</p></div></div></footer></div><div id="search-result-wrapper" class="d-flex justify-content-center unloaded"><div class="col-12 col-sm-11 post-content"><div id="search-hints"><div id="access-tags"><div class="panel-heading">Trending Tags</div><div class="d-flex flex-wrap mt-3 mb-1 mr-3"> <a class="post-tag" href="/tags/c/">c++</a> <a class="post-tag" href="/tags/ray-tracing/">ray tracing</a> <a class="post-tag" href="/tags/abstraction/">abstraction</a> <a class="post-tag" href="/tags/intersections/">intersections</a> <a class="post-tag" href="/tags/introduction/">introduction</a> <a class="post-tag" href="/tags/vectors/">vectors</a></div></div></div><div id="search-results" class="d-flex flex-wrap justify-content-center text-muted mt-3"></div></div></div></div><div id="mask"></div><a id="back-to-top" href="#" aria-label="back-to-top" class="btn btn-lg btn-box-shadow" role="button"> <i class="fas fa-angle-up"></i> </a><div id="notification" class="toast" role="alert" aria-live="assertive" aria-atomic="true" data-animation="true" data-autohide="false"><div class="toast-header"> <button type="button" class="ml-2 ml-auto close" data-dismiss="toast" aria-label="Close"> <span aria-hidden="true">&times;</span> </button></div><div class="toast-body text-center pt-0"><p class="pl-2 pr-2 mb-3">A new version of content is available.</p><button type="button" class="btn btn-primary" aria-label="Update"> Update </button></div></div><script src="https://cdn.jsdelivr.net/npm/simple-jekyll-search@1.10.0/dest/simple-jekyll-search.min.js"></script> <script> SimpleJekyllSearch({ searchInput: document.getElementById('search-input'), resultsContainer: document.getElementById('search-results'), json: '/assets/js/data/search.json', searchResultTemplate: '<div class="pl-1 pr-1 pl-sm-2 pr-sm-2 pl-lg-4 pr-lg-4 pl-xl-0 pr-xl-0"> <a href="{url}">{title}</a><div class="post-meta d-flex flex-column flex-sm-row text-muted mt-1 mb-1"> {categories} {tags}</div><p>{snippet}</p></div>', noResultsText: '<p class="mt-5">Oops! No results found.</p>', templateMiddleware: function(prop, value, template) { if (prop === 'categories') { if (value === '') { return `${value}`; } else { return `<div class="mr-sm-4"><i class="far fa-folder fa-fw"></i>${value}</div>`; } } if (prop === 'tags') { if (value === '') { return `${value}`; } else { return `<div><i class="fa fa-tag fa-fw"></i>${value}</div>`; } } } }); </script> <script src="https://cdn.jsdelivr.net/combine/npm/magnific-popup@1/dist/jquery.magnific-popup.min.js,npm/lozad/dist/lozad.min.js,npm/clipboard@2/dist/clipboard.min.js"></script> <script src="https://cdn.jsdelivr.net/combine/npm/dayjs@1/dayjs.min.js,npm/dayjs@1/locale/en-gb.min.js,npm/dayjs@1/plugin/relativeTime.min.js,npm/dayjs@1/plugin/localizedFormat.min.js"></script> <script defer src="/assets/js/dist/post.min.js"></script> <script> /* see: <https://docs.mathjax.org/en/latest/options/input/tex.html#tex-options> */ MathJax = { tex: { inlineMath: [ /* start/end delimiter pairs for in-line math */ ['$','$'], ['\\(','\\)'] ], displayMath: [ /* start/end delimiter pairs for display math */ ['$$', '$$'], ['\\[', '\\]'] ] } }; </script> <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script> <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"> </script> <script src="https://cdn.jsdelivr.net/npm/bootstrap@4/dist/js/bootstrap.bundle.min.js"></script> <script defer src="/app.js"></script>
