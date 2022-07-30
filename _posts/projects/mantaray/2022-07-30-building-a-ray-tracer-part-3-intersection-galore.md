@@ -7,23 +7,25 @@ tags: [c++, ray tracing, vectors, intersections]
 math: true
 ---
 
-[Last time](https://markieautarkie.github.io/posts/building-a-ray-tracer-part-2-vectors-rays-and-cameras/) we left off with a (pretty empty) backdrop for our ray tracing scene. With ray functionality and a basic camera implemented, our focus shifts to actually rendering some primitives. And to do that, we need to talk about intersections. Also math. Lots, and lots of math... But it will be fun, I promise!
+[Last time](https://markieautarkie.github.io/posts/building-a-ray-tracer-part-2-vectors-rays-and-cameras/) we left off with a (pretty empty) backdrop for the ray tracing scene. With ray functionality and a basic camera implemented, our focus shifts to actually rendering some primitives. And to do that, we need to talk about intersections. Also math. Lots, and lots of math... But it will be fun, I promise!
 
 ## Rather plane
-Let's kick things off with the implementation of an *infinite plane*, as it is simple to construct while giving us a solid foundation to expand upon. One of the many ways to express an infinite plane is defined by the following function:
+Let's kick things off with the implementation of an *infinite plane*, as it is simple to construct. One of the many ways to express an infinite plane is defined by the following function:
 
 $$ P \cdot \overrightarrow{N} + d = 0 $$
 
-Where $P$ is a *point in 3D space*, $\overrightarrow{N}$ the *normal vector* of the plane and $d$ a *scalar offset* for the plane. You might be wondering what a "normal vector" is at this point; in short, it is **a vector whose direction is perpendicular to a certain surface** - in this case, the surface of a plane. Normals are used absolutely everywhere in graphical applications, but for now this quick introduction will suffice.
+Where $P$ is a *point in 3D space*, $\overrightarrow{N}$ the *normal vector* of the plane and $d$ a *scalar offset*. 
 
-> Note that a *normal vector* and the act of *"normalizing" a vector* (which ensures that the length of a vector is equal to 1) are two very different concepts!
+You might be wondering what a "normal vector" is at this point; in short, it is **a vector whose direction is perpendicular to a certain surface** - in this case, the surface of a plane. Normals are used absolutely *everywhere* in graphical applications. For now this quick introduction will suffice though.
+
+> Note that a *normal vector* and the act of *"normalizing" a vector* (ensuring that the length of a vector is equal to 1) are two very different concepts!
 {: .prompt-warning }
 
 Perhaps you recall from the last post that the ray equation is defined as $P(t) = O + t\overrightarrow{D}$, giving us a point in 3D space along the ray. Due to one of the many cool properties of mathematics, we can substitute for $P$ in the plane equation by plugging in the ray formula:
 
 $$ (O + t\overrightarrow{D}) \cdot \overrightarrow{N} + d = 0 $$
 
-To figure out whether a ray intersects with the plane, we need to find a value for $t$ which satisfies this formula. In other words, by isolating $t$ in the formula we'll find exactly what we're looking for:
+To figure out whether a ray intersects with the plane, we need to find a value for $t$ which satisfies this formula. In other words, by isolating $t$ in the equation we'll find exactly what we're looking for:
 
 $$ \rightarrow O \cdot \overrightarrow{N} + t\overrightarrow{D} \cdot \overrightarrow{N} + d = 0 $$
 
@@ -57,7 +59,6 @@ bool intersect_plane(const ray& r, const float3& normal, float offset)
 Now to expand the `ray_color` function just a tad in order to check for an arbitrary plane in the scene:
 
 ```c++
-// returns a background gradient depending on the y direction of a primary ray
 color ray_color(const ray& r)
 {
     // check if the current ray intersects a plane with its normal pointing upwards,
@@ -78,9 +79,9 @@ Running the application now gives us an infinite plane rendered all the way towa
 _Mr. Blue Sky, meet Mr. Green Field._
 
 ## Abstraction
-Sweet, we implemented a way to intersect a ray with a plane. But what if we want to check several planes? Do we need to describe a specific condition for each of them? What happens when we also want to add spheres or triangles as intersectable primitives? If we carry on by programming them all out one by one, we'll end up with an unmanageable mess of spaghetti code, which will be impossible to maintain or alter in the future...
+Sweet, we implemented a way to intersect a ray with a plane. But what if we want to check *several* planes? Do we need to describe a specific condition for each of them? What happens when we also want to add spheres or triangles as intersectable primitives? If we carry on like this, we'll end up with an unmanageable mess of spaghetti code which would be hard to maintain in the future...
 
-Luckily, many *object-oriented programming languages* such as *C++* have built-in features to built in some layers of abstraction. If we think about it, we don't really care *what* a ray intersects with; there should just be function defined for each primitive which handles the intersection for us. As such, each of the primitives/objects we implement needs some kind of intersection method. Furthermore, we should keep track of some variables that describe the intersection, like the intersection point, the normal vector at that intersection and the value for $t$ at that intersection. Time to cram all this stuff in an abstract, *intersectable* class:
+Luckily, many *object-oriented programming languages* such as *C++* have built-in features to add layers of abstraction. If we think about it, we don't really care about *what* a ray intersects with; there should just be function defined for each primitive which handles that intersection for us. As such, each of the primitives/objects we implement needs some kind of intersection method. Furthermore, we should track a set of variables that describes the intersection, like the *intersection point*, the *normal vector* at that intersection and the value for $t$ at that intersection. Time to cram all this stuff in an abstract, *intersectable* class:
 
 ```c++
 #pragma once
@@ -102,17 +103,17 @@ public:
 ```
 {: file="intersectable.h" }
 
-> The abstract `intersect` method also takes two scaler values, `t_min` and `t_max`. These will be used to define an interval for $t$ for which the intersection is valid. This will be useful in the future!
+> The abstract `intersect` method also takes two scalar values, `t_min` and `t_max`. These will be used to define an interval for which the intersection is valid. This will be useful in the future!
 {: .prompt-info }
 
 ### How do you like your normals?
-There's a small design decision to make regarding normal vectors. As previously noted, a normal is a vector which sits perpendicular on top of a surface. However, a normal can point **outwards** or **inwards**, depending how you look at the surface. For example, how do we handle a normal when we look at the backside of a plane?
+There's a small design decision to make regarding normal vectors. A normal can point **outwards** or **inwards**, depending how you look at the surface. For example, how do we handle a normal when we look at the *backside* of a plane?
 
-As of now, the normal always points outwards; it has a set direction no matter where the ray is coming from. Another possibility is to point the normal vector always against the ray direction. In this case the normal will point outwards when we are in front of a surface, and inwards when we are on the backside of a surface. 
+As of now, the normal always points outwards from the surface. Another possibility is to always point the normal vector against the ray direction. In this case the normal will point outwards when we are in front of a surface, and inwards when we are on the backside of a surface. 
 
-Eventually we want to know which side of the surface we're facing (and how the normal is constructed) to apply the rendering in a correct manner. For this application I have chosen to always **point the normal against the incident ray**, as this allows us to save the information beforehand together with this other intersection data.
+Eventually we want to know which side of the surface we're facing to apply the rendering in a correct manner. For this application I have chosen to always **point the normal against the incident ray**, as this allows us to save the information together with the intersection data.
 
-We'll add a boolean to the intersection data which indicates whether the current intersection is from the front or the back of the surface, which in turn will flip the normal accordingly via a function:
+We'll add a *boolean* to the intersection data which indicates whether the current intersection is from the front or the back of the surface, in turn flipping the normal accordingly via a function:
 
 ```c++
 // this struct holds the data which is saved when a ray intersection happens
@@ -138,7 +139,7 @@ struct intersect_data
 {: file="intersectable.h" .nolineno }
 
 ### Re-implementing infinite planes
-With the abstract class in place for primitive/object intersection, we can rewrite our infinite plane implementation. First, I defined a new constant which denotes a very small floating point number, which will be useful for a lot of situations:
+With the abstract class in place for primitive/object intersection, we can rewrite our infinite plane implementation. First, I defined a new constant which denotes a very small floating point number. This will be useful in a lot of situations:
 
 ```c++
 #define EPSILON     0.00001f
@@ -172,7 +173,7 @@ public:
 ```
 {: file="plane.h" }
 
-It holds a normal and an offset needed to define a plane. It also implements a more specific implementation of the intersect method. This basically is the same code we've written before, but with some minor edits to save the intersection data as well:
+It holds a normal and an offset needed to define a plane. It has a more specific implementation of the `intersect` method as well; the code is basically the same as before, with some minor edits to save/update the intersection data:
 
 ```c++
 #include "precomp.h"
@@ -254,11 +255,11 @@ public:
 {: file="sphere.h" }
 
 ### Implementing the sphere intersect method
-Now for the special version of the `intersect` function which describes the intersection between a ray and a sphere. Lo and behold, we have a nice equation to describe a sphere with a radius $r$ centered at the origin as well:
+Now for the special version of the ray/sphere `intersect` function. Lo and behold, there exists an equation to describe a sphere with a radius $r$ centered at the origin:
 
 $$ P^2 = r^2 $$
 
-This states that any point $P$ is on the sphere's surface if the equation holds. Moreover, the point is *inside* the sphere if $P^2 \lt r^2$ and the point is *outside* the sphere if $P^2 \gt r^2$.
+This states that any point $P$ is on the sphere's surface if the equation holds. The point is *inside* the sphere if $P^2 \lt r^2$ and the point is *outside* the sphere if $P^2 \gt r^2$.
 
 However, the sphere isn't necessarily located at the origin but at any point $C$, so we need to update the formula a bit:
 
@@ -280,7 +281,15 @@ If you weren't vast asleep during math class at high school, you probably ran in
 
 $$ t = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}$$
 
-Simply plugging in the *abc* terms using the quadratic function gives us $a = \overrightarrow{D} \cdot \overrightarrow{D}$, $b = 2\overrightarrow{D} \cdot (O - C)$ and $c = (O - C)^2 - r^2$. Now we can solve the formula to find a value for $t$, which can have 0, 1 or 2 solutions depending on the value below the square root (called the *discriminant*):
+Simply plugging in the *abc* terms using the quadratic function we found gives: 
+
+$$ a = \overrightarrow{D} \cdot \overrightarrow{D} $$
+
+$$ b = 2\overrightarrow{D} \cdot (O - C) $$
+
+$$ c = (O - C)^2 - r^2 $$
+
+Now we can solve the formula to find a value for $t$. It can have 0, 1 or 2 solutions depending on the value below the square root (called the *discriminant*):
 
 1. If the discriminant is **negative** there are no solutions &rarr; the ray misses the sphere;
 2. If the discriminant is **zero** there is one solution &rarr; the ray shaves along the surface of the sphere, hitting it in exactly one point;
@@ -299,7 +308,7 @@ $$ \rightarrow \frac{-h \pm \sqrt{h^2 - ac}}{a} $$
 
 The $b$ term now changes to $h = \overrightarrow{D} \cdot (O - C)$. 
 
-Next, consider that a the dot product of a vector with itself is equal to the squared length of that vector. We got an $a$ term which states $a = \overrightarrow{D} \cdot \overrightarrow{D}$, which means that we can rewrite this part as $a = \|\|\overrightarrow{D}\|\|^2$. But wait... In the project, we ensured that the directional vector of a ray is always normalized! This means that its length will always be exactly 1, no matter in which direction it points:
+Next, consider that a the dot product of a vector with itself is equal to the squared length of that vector. We got an $a$ term which states $a = \overrightarrow{D} \cdot \overrightarrow{D}$, so we can rewrite this part as $a = \|\|\overrightarrow{D}\|\|^2$. But wait... In the project, we ensured that the directional vector of a ray is always normalized! This means that its length will always be exactly 1, no matter in which direction it points:
 
 $$ a = 1^2 \rightarrow a = 1 $$
 
@@ -359,7 +368,7 @@ Initializing a new sphere object in `mantaray.cpp` gives the following result:
 _What about a red sun to complement the scene?_
 
 ## Triangle time
-One more primitive should do it for now! And it might be the most important one, as pretty much everything in graphical applications consists out of the darn things. It's a one-trick pony kind of thing, so once again we inherit from the `intersectable` class.
+One more primitive should do it for now! And it might be the most important one, as pretty much everything in graphical applications consists out of the darn things. Once again we inherit from the `intersectable` class.
 
 A triangle is defined by 3 *vertices* (3D points that define the corners of the triangle) and we'll add a *centroid* as well, which is the point in the very center of the triangle:
 
